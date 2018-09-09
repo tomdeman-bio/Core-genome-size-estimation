@@ -11,9 +11,11 @@ use Getopt::Long;
 use String::ShellQuote qw(shell_quote);
 use Array::Utils qw(:all);
 
+#global variables
 my $sortbam_path;
 my $genome;
 my $depth;
+my $out;
 my $bed;
 
 my @bams;
@@ -25,30 +27,37 @@ my $core_pos;
 my $masked_pos;
 my $masked_regions;
 my @core_masked;
+my $handle;
 
 my $starttime = localtime;
-my $version = "1.1";
+my $version = "1.2";
 
 GetOptions(	"bam=s"		=> \$sortbam_path,
 		"genome=s"	=> \$genome,
 		"depth=s"	=> \$depth,
+		"out=s"		=> \$out,
 		"masked=s"	=> \$bed,
 		"help|?"	=> sub {Usage()}
 		);
 
-if (($sortbam_path) && ($genome) && ($depth)) {
+if (($sortbam_path) && ($genome) && ($depth) && ($out)) {
 	@bams = &get_files("bam");
 	print STDERR "Hi $ENV{USER}, you are now running $0 version: $version on $starttime \n\n";
-	print "$0 version: $version \n\n";
-	print "BAM files included in core genome estimate: \n";
+	
+	#create output folder
+	mkdir "$out";
+	open ($handle, ">$out/" . "Core_genome_size_stats.txt");
+	
+	print $handle "$0 version: $version \n\n";
+	print $handle "BAM files included in core genome estimate: \n";
 	foreach (@bams) {
-		print "$_\n";
+		print $handle "$_\n";
 	}
 	
 	$genome_size = &genome_size_calc;
 	
 	($genomes, $coregenome_size, $relative, $core_pos) = &estimate_core(@bams);
-	print "Core genome size for $genomes genomes is: $coregenome_size base pairs, which equals $relative% of the mapping reference genome\n\n";
+	print $handle "Core genome size for $genomes genomes is: $coregenome_size base pairs, which equals $relative% of the mapping reference genome\n\n";
 } else {
 	&Usage;
 }
@@ -59,19 +68,19 @@ if ($bed) {
 	#masked positions from the BED file, often phage DNA or read mapping cliffs
 	@core_masked = intersect(@$masked_pos, @$core_pos);
 	my $core_masked_len = scalar(@core_masked);
-	print "Total masked regions: $masked_regions bp\n"; 
-	print "Total masked regions in core genome: $core_masked_len bp \n\n";
+	print $handle "Total masked regions: $masked_regions bp\n"; 
+	print $handle "Total masked regions in core genome: $core_masked_len bp \n\n";
 	my $coregenome_nocoremasked = $coregenome_size - $core_masked_len;
 	
 	my $percentage = ($coregenome_nocoremasked/$genome_size)* 100;
 	my $rounded = sprintf "%.2f", $percentage;
 	
-	print "Core genome size excluding masked regions for $genomes genomes is: $coregenome_nocoremasked base pairs, which equals $rounded% of the mapping reference genome\n";
+	print $handle "Core genome size excluding masked regions for $genomes genomes is: $coregenome_nocoremasked base pairs, which equals $rounded% of the mapping reference genome\n";
 }
 
 sub genome_size_calc {
 	print STDERR "\n";
-	print "your mapping reference is $genome \n\n";
+	print $handle "your mapping reference is $genome \n\n";
 	open FASTA, "$genome" or die "cannot open $genome for reading \n";
 	my $total_bases = 0;
 	while (<FASTA>) {
@@ -112,7 +121,7 @@ sub estimate_core {
 	
 	#get the .cov files	
 	my @covs = &get_files("cov");
-	open (my $fh2, '>', "Pairwise_core_genome_sizes.txt");
+	open (my $fh2, ">$out/" . "Pairwise_core_genome_sizes.txt");
 	my @cov2d;
 	foreach (@covs) {
 		my $countl = 0;
@@ -189,7 +198,7 @@ sub get_files {
 
 sub Usage {
 	print STDERR "\n Please provide mandatory input files and values (-bam, -genome, -depth)!!!\n\n";
-	print STDERR "\n Usage:  perl $0 -bam <BAM file path> -genome <genome FASTA file> -depth <minimum depth of coverage to include in output>\n\n";
+	print STDERR "\n Usage:  perl $0 -bam <BAM file path> -genome <genome FASTA file> -depth <minimum depth of coverage to include in output> -out <output folder>\n\n";
 	print STDERR "\n optional input: -masked <bed file> \n";
 	exit;
 }
