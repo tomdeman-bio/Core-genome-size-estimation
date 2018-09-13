@@ -6,7 +6,7 @@ A Perl script that estimates the cluster core genome size across a group of isol
 ### Usage
     perl estimate_core_genome_from_bam.pl -bam /path/to/bam/files -genome mapping_reference.fasta -depth 10 -out output_folder
     
-    OR
+    OR run it with a BED file containing masked regions 
     
     perl estimate_core_genome_from_bam.pl -bam /path/to/bam/files -genome mapping_reference.fasta -depth 10 -out output_folder -masked masked_regions.bed 
 
